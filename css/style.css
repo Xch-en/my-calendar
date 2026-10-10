@@ -1,0 +1,345 @@
+/* ===================== 基础与配色 ===================== */
+:root {
+  --primary: #4f6ef7;
+  --primary-soft: #eef1fe;
+  --card: #ffffff;
+  --text: #1c2333;
+  --text-2: #7a8299;
+  --border: #e7eaf3;
+  --danger: #e5484d;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: #e9ebf2;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ===================== 手机竖屏布局 ===================== */
+#app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--card);
+  box-shadow: 0 0 44px rgba(18, 24, 55, 0.10);
+}
+
+/* ---- 顶部导航 ---- */
+.app-header {
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 10px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.date-nav { display: flex; align-items: center; gap: 4px; }
+.date-title {
+  flex: 1; min-width: 0;
+  text-align: center;
+  font-size: 16px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.icon-btn {
+  flex: none;
+  width: 34px; height: 34px;
+  border: none; border-radius: 10px;
+  background: transparent; color: var(--text);
+  font-size: 24px; line-height: 1;
+  cursor: pointer;
+}
+.icon-btn:active { background: var(--primary-soft); }
+.today-btn {
+  flex: none; margin-left: 6px;
+  border: none; border-radius: 999px;
+  padding: 7px 13px;
+  background: var(--primary-soft); color: var(--primary);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.today-btn:disabled { opacity: 0.35; }
+
+/* ---- 周 / 月 分段切换 ---- */
+.view-toggle {
+  display: flex; gap: 2px;
+  width: max-content;
+  margin: 12px auto 0;
+  padding: 3px;
+  background: #eef0f6;
+  border-radius: 11px;
+}
+.seg-btn {
+  border: none; background: transparent;
+  padding: 6px 22px; border-radius: 9px;
+  font-size: 13px; font-weight: 600; color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.seg-btn.active {
+  background: #fff; color: var(--primary);
+  box-shadow: 0 1px 5px rgba(25, 35, 80, 0.14);
+}
+
+/* ---- 日历区域 ---- */
+.cal-wrap { flex: 1; min-height: 0; padding: 2px 4px 6px; }
+#calendar { height: 100%; }
+
+/* ===================== FullCalendar 样式定制 ===================== */
+#calendar .fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: transparent;
+  --fc-today-bg-color: rgba(79, 110, 247, 0.06);
+  --fc-highlight-color: rgba(79, 110, 247, 0.14);
+  --fc-now-indicator-color: #f43f5e;
+}
+
+/* 星期表头 */
+.fc .fc-col-header-cell { border-bottom: 1px solid var(--border); }
+.fc .fc-col-header-cell-cushion { padding: 7px 4px 6px; background: transparent; }
+.dh { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.dh-wd { font-size: 10.5px; font-weight: 500; color: var(--text-2); }
+.dh-day { font-size: 16px; font-weight: 700; line-height: 1; color: var(--text); }
+/* 今天的日期数字高亮为圆形徽标 */
+.fc .fc-col-header-cell.fc-day-today .dh-day {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: 999px;
+  color: #fff; background: var(--primary);
+}
+
+/* 时间轴刻度 */
+.fc .fc-timegrid-slot-label { font-size: 10.5px; color: var(--text-2); }
+.fc .fc-timegrid-axis { border: none; }
+.fc .fc-timegrid-slot-label-cushion { padding: 0 6px 0 2px; }
+
+/* 事件块 */
+.fc .fc-event {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(25, 35, 80, 0.18);
+  cursor: pointer;
+}
+.fc .fc-event:hover { filter: brightness(1.06); }
+.fc .fc-event-main { padding: 2px 6px; }
+.ev-title { font-weight: 650; font-size: 11.5px; line-height: 1.25; word-break: break-all; }
+.ev-loc {
+  font-size: 10px; opacity: 0.8;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* 月视图 */
+.fc .fc-daygrid-day-number { color: var(--text); font-size: 12px; font-weight: 500; padding: 4px 6px; }
+.fc .fc-day-today .fc-daygrid-day-number { color: var(--primary); font-weight: 800; }
+.fc .fc-daygrid-event { border-radius: 6px; font-size: 11px; margin-top: 2px; }
+.fc .fc-daygrid-more-link { color: var(--text-2); font-size: 11px; font-weight: 600; }
+
+/* 弹出的“更多”气泡 */
+.fc .fc-popover {
+  border: none; border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(20, 26, 55, 0.18);
+  overflow: hidden;
+}
+.fc .fc-popover-header {
+  background: #f6f7fb; color: var(--text);
+  font-size: 12.5px; font-weight: 600;
+}
+
+/* 内部滚动条细化 */
+#calendar .fc-scroller { scrollbar-width: thin; }
+#calendar .fc-scroller::-webkit-scrollbar { width: 4px; }
+#calendar .fc-scroller::-webkit-scrollbar-thumb { background: #dcdfe9; border-radius: 4px; }
+
+/* ===================== 底部待办抽屉 ===================== */
+.todo-tray {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: calc(54px + env(safe-area-inset-bottom, 0px)); /* 收起：只剩抽屉条 */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  transition: height 0.28s cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+.todo-tray.dragging { transition: none; } /* 跟手拖动时关掉动画 */
+
+/* 抽屉条（把手 + 标题 + 数量 + 箭头） */
+.todo-drawer-bar {
+  flex: none;
+  position: relative;
+  padding: 6px 14px 10px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none; /* 上拉/下拉手势需要指针跟随 */
+}
+.drawer-handle { width: 36px; height: 4px; border-radius: 2px; background: #d9dce6; margin: 0 auto 9px; }
+.drawer-summary { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.drawer-title { font-size: 13.5px; font-weight: 700; }
+.drawer-count {
+  min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary-soft); color: var(--primary);
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.drawer-chevron {
+  position: absolute; right: 16px; top: 24px;
+  width: 10px; height: 10px;
+  border-top: 2px solid var(--text-2); border-right: 2px solid var(--text-2);
+  transform: rotate(-45deg);                 /* 收起时朝上：提示可展开 */
+  transition: transform 0.25s ease;
+}
+.todo-tray.expanded .drawer-chevron { transform: rotate(135deg); } /* 展开后朝下：可收起 */
+
+/* 抽屉主体 */
+.todo-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 14px 2px; }
+.todo-input-row { flex: none; display: flex; gap: 8px; padding-bottom: 10px; }
+#todo-input {
+  flex: 1; min-width: 0; height: 42px;
+  border: 1.5px solid var(--border); border-radius: 12px;
+  padding: 0 12px;
+  font-size: 16px; font-family: inherit;
+  color: var(--text); background: #fbfcfe;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+#todo-input:focus { border-color: var(--primary); background: #fff; }
+#todo-add {
+  flex: none;
+  width: 42px; height: 42px;
+  border: none; border-radius: 12px;
+  background: var(--primary); color: #fff;
+  font-size: 20px; line-height: 1;
+  cursor: pointer;
+}
+#todo-add:active { transform: scale(0.94); }
+
+/* 竖排待办清单 */
+.todo-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.todo-list::-webkit-scrollbar { width: 4px; }
+.todo-list::-webkit-scrollbar-thumb { background: #dcdfe9; border-radius: 4px; }
+.todo-item {
+  flex: none;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 2px;
+  border-bottom: 1px solid #f0f2f8;
+}
+.todo-item:last-child { border-bottom: none; }
+.todo-chip {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 2px;
+  cursor: grab;
+  user-select: none;
+  /* 触屏保持默认 touch-action：清单可滚动，长按行后拖动 */
+}
+.todo-chip:active { cursor: grabbing; }
+.todo-grip { flex: none; color: #c3c9d9; font-size: 15px; line-height: 1; }
+.todo-title {
+  flex: 1; min-width: 0;
+  font-size: 15px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.todo-x {
+  flex: none;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: transparent; color: var(--text-2);
+  font-size: 17px; line-height: 1;
+  cursor: pointer;
+}
+.todo-x:hover { background: #fdecec; color: var(--danger); }
+.todo-empty { padding: 30px 0; text-align: center; font-size: 13px; color: var(--text-2); }
+
+/* ===================== 悬浮新建按钮 ===================== */
+.fab {
+  position: absolute;
+  right: 18px;
+  bottom: calc(66px + env(safe-area-inset-bottom, 0px)); /* 抬高避开待办抽屉条 */
+  width: 56px; height: 56px;
+  border: none; border-radius: 18px;
+  background: linear-gradient(135deg, #6a83ff, #4f6ef7);
+  color: #fff; font-size: 26px; line-height: 1;
+  box-shadow: 0 8px 20px rgba(79, 110, 247, 0.42);
+  cursor: pointer; z-index: 10;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+.fab:active { transform: scale(0.92); }
+#app.tray-open .fab { opacity: 0; pointer-events: none; transform: scale(0.8); }
+
+/* ===================== 底部弹层表单 ===================== */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(18, 22, 38, 0.45);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.overlay.show { opacity: 1; }
+.overlay[hidden] { display: none; }
+
+.sheet {
+  width: 100%; max-width: 480px;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 10px 20px calc(env(safe-area-inset-bottom, 0px) + 18px);
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+.overlay.show .sheet { transform: translateY(0); }
+.sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: #d9dce6; margin: 4px auto 14px; }
+.sheet-heading { margin: 0 0 14px; font-size: 18px; }
+
+.field { flex: 1; min-width: 0; margin-bottom: 12px; }
+.field label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.field input {
+  width: 100%; height: 44px;
+  border: 1.5px solid var(--border); border-radius: 12px;
+  padding: 0 12px;
+  font-size: 16px; font-family: inherit;
+  color: var(--text); background: #fbfcfe;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.field input:focus { border-color: var(--primary); background: #fff; }
+.field-row { display: flex; gap: 10px; }
+.form-error { min-height: 18px; margin: 0 0 6px; color: var(--danger); font-size: 12.5px; }
+
+.sheet-actions { display: flex; align-items: center; gap: 10px; }
+.flex-spacer { flex: 1; }
+.btn {
+  height: 44px; padding: 0 18px;
+  border: none; border-radius: 12px;
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { min-width: 96px; background: var(--primary); color: #fff; }
+.btn-ghost { background: #eef0f6; color: var(--text); }
+.btn-danger { background: #fdecec; color: var(--danger); }
+.btn-danger.armed { background: var(--danger); color: #fff; }
+
+/* ===================== 轻提示 ===================== */
+.toast {
+  position: fixed; left: 50%; z-index: 60;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%) translateY(8px);
+  max-width: 80%;
+  padding: 9px 18px;
+  background: rgba(28, 35, 51, 0.92); color: #fff;
+  border-radius: 999px;
+  font-size: 13px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
