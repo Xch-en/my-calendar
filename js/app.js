@@ -215,6 +215,7 @@ const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), 
   // 交互
   selectable: true,
   selectMirror: true,
+  editable: true, // 事项可整体拖动，直接改时间
   eventResizableFromStart: true, // 事项上、下边缘均可拖动改时间
   eventDurationEditable: true,
   events(fetchInfo, successCallback, failureCallback) {
@@ -471,6 +472,7 @@ async function scheduleTodo(todoId, start) {
   });
   calendar.refetchEvents();
   renderTodos();
+  setTray(false); // 安排完成后自动收回抽屉，露出日历看安排结果
   toast(`已安排「${todo.title}」`);
 }
 

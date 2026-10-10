@@ -2,7 +2,7 @@
 'use strict';
 
 // 修改任何静态文件后，把版本号 +1，用户下次打开时自动更新缓存
-const CACHE_VERSION = 'my-calendar-v3';
+const CACHE_VERSION = 'my-calendar-v4';
 
 const APP_SHELL = [
   './',
