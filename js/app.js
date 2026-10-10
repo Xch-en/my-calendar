@@ -203,6 +203,7 @@ const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), 
   snapDuration: '00:15',
   slotLabelInterval: '01:00',
   scrollTime: '07:00:00',
+  slotEventOverlap: false, // 重叠事项竖排并列显示，而不是层叠压盖
   nowIndicator: true,
   slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
 
@@ -455,6 +456,26 @@ function endPull() {
 }
 drawerBar.addEventListener('pointerup', endPull);
 drawerBar.addEventListener('pointercancel', endPull);
+
+/* 拖动待办：指针一进入日历区域就收回抽屉，不用等松手 */
+let todoDragActive = false;    // 正在从清单拖动待办
+let collapsedForDrag = false;  // 本次拖动是否已触发收回
+todoList.addEventListener('pointerdown', e => {
+  if (!e.target.closest('.todo-chip')) return;
+  todoDragActive = true;
+  collapsedForDrag = false;
+});
+document.addEventListener('pointermove', e => {
+  if (!todoDragActive || collapsedForDrag || !trayExpanded) return;
+  const r = document.querySelector('.cal-wrap').getBoundingClientRect();
+  if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY < r.bottom) {
+    collapsedForDrag = true;
+    setTray(false);
+    requestAnimationFrame(() => calendar.updateSize()); // 立即同步，保证落点准确
+  }
+}, { passive: true });
+document.addEventListener('pointerup', () => { todoDragActive = false; });
+document.addEventListener('pointercancel', () => { todoDragActive = false; });
 
 /* 拖放到日历后：创建默认 1 小时的事项，并消耗该待办 */
 async function scheduleTodo(todoId, start) {
