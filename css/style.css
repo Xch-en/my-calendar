@@ -19,6 +19,14 @@ body {
   color: var(--text);
   background: #e9ebf2;
   -webkit-font-smoothing: antialiased;
+  /* 触屏防误触：禁用整页文字选择与长按复制/呼叫菜单（输入框除外） */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 button { font-family: inherit; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -135,6 +143,26 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); o
   font-size: 10px; opacity: 0.8;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* 边缘调整把手：加大触控热区（默认仅 7px 高，触屏几乎抓不到），
+   并显示小横条提示可拖动上/下边缘。
+   注意：FullCalendar 默认 display:none、仅悬停/选中显示——触屏没有 hover，
+   必须强制常显，否则手机上根本抓不到边缘 */
+.fc .fc-timegrid-event .fc-event-resizer {
+  display: block;
+  height: 16px;
+  left: 15%; right: 15%;
+}
+.fc .fc-timegrid-event .fc-event-resizer-start { top: -5px; }
+.fc .fc-timegrid-event .fc-event-resizer-end { bottom: -5px; }
+.fc .fc-timegrid-event .fc-event-resizer::after {
+  content: "";
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: 18px; height: 3px; border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.fc .fc-timegrid-event .fc-event-resizer-start::after { top: 9px; }
+.fc .fc-timegrid-event .fc-event-resizer-end::after { bottom: 9px; }
 
 /* 月视图 */
 .fc .fc-daygrid-day-number { color: var(--text); font-size: 12px; font-weight: 500; padding: 4px 6px; }

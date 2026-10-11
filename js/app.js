@@ -65,6 +65,7 @@ const btnDelete = document.getElementById('btn-delete');
 let editingId = null;   // null = 新建
 let deleteArmed = false;
 let sourceTodoId = null; // 由待办转建事项时，记录待办 id，保存成功后将其消耗
+let suppressCreateUntil = 0; // 关闭弹层后的一小段时间内，点空白不触发新建（防止“收起表单”的那一下误触）
 
 function openSheet() {
   overlay.hidden = false;
@@ -73,6 +74,7 @@ function openSheet() {
 }
 
 function closeSheet() {
+  suppressCreateUntil = performance.now() + 400; // 关掉弹层后的第一下点击视为“回到时间轴”，不当作新建
   overlay.classList.remove('show');
   setTimeout(() => {
     overlay.hidden = true;
@@ -219,6 +221,7 @@ const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), 
   editable: true, // 事项可整体拖动，直接改时间
   eventResizableFromStart: true, // 事项上、下边缘均可拖动改时间
   eventDurationEditable: true,
+  longPressDelay: 350, // 触屏长按 350ms 即可开始拖动/拉伸（默认 1000ms 太迟钝）
   events(fetchInfo, successCallback, failureCallback) {
     db.events.toArray()
       .then(rows => successCallback(rows.map(rowToEvent)))
@@ -245,6 +248,12 @@ const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), 
 
   /* 点空白处 / 拖选时间段 → 新建 */
   dateClick(info) {
+    if (trayExpanded) { // 抽屉展开时，点日历 = 收回抽屉，不新建
+      setTray(false);
+      suppressCreateUntil = performance.now() + 400; // 同一次点击随后触发的 select/dateClick 一并拦下
+      return;
+    }
+    if (performance.now() < suppressCreateUntil) return; // 刚回到时间轴的那一下，不新建
     let start;
     if (info.allDay) { // 月视图点击某天，默认当天 9:00（今天则取下个半点）
       start = new Date(info.date);
@@ -261,6 +270,12 @@ const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), 
   },
   select(info) {
     calendar.unselect();
+    if (trayExpanded) { // 抽屉展开时，点日历 = 收回抽屉，不新建
+      setTray(false);
+      suppressCreateUntil = performance.now() + 400;
+      return;
+    }
+    if (performance.now() < suppressCreateUntil) return;
     if (info.allDay) { // 月视图点选某天
       const s = new Date(info.start);
       s.setHours(9, 0, 0, 0);
@@ -497,12 +512,18 @@ async function scheduleTodo(todoId, start) {
   toast(`已安排「${todo.title}」`);
 }
 
-/* FullCalendar 外部拖拽：让托盘里的 Chip 可拖到日历上（触屏为长按拖动） */
+/* FullCalendar 外部拖拽：让托盘里的 Chip 可拖到日历上（触屏长按 350ms 后拖动） */
 new FullCalendar.Draggable(document.getElementById('todo-tray'), {
-  itemSelector: '.todo-chip'
+  itemSelector: '.todo-chip',
+  longPressDelay: 350
 });
 
 renderTodos();
+
+/* 触屏长按不再弹出系统的复制/选择菜单（配合 CSS user-select:none 双保险） */
+document.addEventListener('contextmenu', e => {
+  if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) e.preventDefault();
+});
 
 /* 暴露给控制台调试 / 自动化测试 */
 window.__app = { calendar, db };
