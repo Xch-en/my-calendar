@@ -102,13 +102,15 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); o
 #calendar { height: 100%; }
 
 /* ===================== FullCalendar 样式定制 ===================== */
-#calendar .fc {
+/* 注意：FullCalendar v6 直接把 .fc 挂在 #calendar 元素本身（同一元素，非父子），
+   选择器必须写成 #calendar.fc 才能匹配 */
+#calendar.fc, #calendar .fc {
   --fc-border-color: var(--border);
   --fc-page-bg-color: transparent;
-  --fc-today-bg-color: rgba(79, 110, 247, 0.06);
   --fc-highlight-color: rgba(79, 110, 247, 0.14);
-  --fc-now-indicator-color: #f43f5e;
 }
+/* 不显示“今天”列的特殊背景（默认是淡黄色填充） */
+#calendar .fc-day-today, #calendar .fc .fc-day-today { background-color: transparent; }
 
 /* 星期表头 */
 .fc .fc-col-header-cell { border-bottom: 1px solid var(--border); }
@@ -116,14 +118,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); o
 .dh { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .dh-wd { font-size: 10.5px; font-weight: 500; color: var(--text-2); }
 .dh-day { font-size: 16px; font-weight: 700; line-height: 1; color: var(--text); }
-/* 今天的日期数字高亮为圆形徽标 */
-.fc .fc-col-header-cell.fc-day-today .dh-day {
-  display: flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px;
-  border-radius: 999px;
-  color: #fff; background: var(--primary);
-}
-
 /* 时间轴刻度 */
 .fc .fc-timegrid-slot-label { font-size: 10.5px; color: var(--text-2); }
 .fc .fc-timegrid-axis { border: none; }
@@ -135,6 +129,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); o
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(25, 35, 80, 0.18);
   cursor: pointer;
+  /* 触屏按住事项时立即接管手势，不被浏览器抢去滚动——
+     长按后拖动才跟手；滚动日历请从空白处开始 */
+  touch-action: none;
 }
 .fc .fc-event:hover { filter: brightness(1.06); }
 .fc .fc-event-main { padding: 2px 6px; }
@@ -166,7 +163,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); o
 
 /* 月视图 */
 .fc .fc-daygrid-day-number { color: var(--text); font-size: 12px; font-weight: 500; padding: 4px 6px; }
-.fc .fc-day-today .fc-daygrid-day-number { color: var(--primary); font-weight: 800; }
 .fc .fc-daygrid-event { border-radius: 6px; font-size: 11px; margin-top: 2px; }
 .fc .fc-daygrid-more-link { color: var(--text-2); font-size: 11px; font-weight: 600; }
 

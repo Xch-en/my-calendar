@@ -206,7 +206,6 @@ const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), 
   slotLabelInterval: '01:00',
   scrollTime: '07:00:00',
   slotEventOverlap: false, // 重叠事项竖排并列显示，而不是层叠压盖
-  nowIndicator: true,
   slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
 
   // 月视图
@@ -221,7 +220,9 @@ const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), 
   editable: true, // 事项可整体拖动，直接改时间
   eventResizableFromStart: true, // 事项上、下边缘均可拖动改时间
   eventDurationEditable: true,
-  longPressDelay: 350, // 触屏长按 350ms 即可开始拖动/拉伸（默认 1000ms 太迟钝）
+  autoScroll: true, // 拖动/拉伸到视图上下边缘时，时间轴自动滚动
+  longPressDelay: 250, // 触屏长按 250ms 即可开始拖动/拉伸（默认 1000ms 太迟钝）
+  eventLongPressDelay: 250,
   events(fetchInfo, successCallback, failureCallback) {
     db.events.toArray()
       .then(rows => successCallback(rows.map(rowToEvent)))
@@ -524,7 +525,8 @@ async function scheduleTodo(todoId, start) {
    触屏按住 150ms 即可跟手拖动（长按不会弹系统菜单） */
 new FullCalendar.Draggable(document.getElementById('todo-tray'), {
   itemSelector: '.todo-handle',
-  longPressDelay: 150
+  longPressDelay: 150,
+  autoscroll: true // 拖到日历边缘时自动滚动时间轴
 });
 
 renderTodos();
