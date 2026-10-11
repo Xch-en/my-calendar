@@ -262,16 +262,27 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); o
   border-bottom: 1px solid #f0f2f8;
 }
 .todo-item:last-child { border-bottom: none; }
+/* 左侧拖动把手：唯一的拖动区域，尺寸够大、无文字，
+   touch-action:none 让按下立即接管手势（不滚动、不选字、无系统长按菜单） */
+.todo-handle {
+  flex: none;
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+  background: #f1f3fa;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.todo-handle:active { background: #e4e9f8; cursor: grabbing; }
+.todo-grip { color: #98a3bd; font-size: 20px; line-height: 1; }
 .todo-chip {
   flex: 1; min-width: 0;
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center;
   padding: 2px;
-  cursor: grab;
-  user-select: none;
-  /* 触屏保持默认 touch-action：清单可滚动，长按行后拖动 */
+  cursor: pointer; /* 点按转表单；拖动请用左侧把手 */
 }
-.todo-chip:active { cursor: grabbing; }
-.todo-grip { flex: none; color: #c3c9d9; font-size: 15px; line-height: 1; }
 .todo-title {
   flex: 1; min-width: 0;
   font-size: 15px; color: var(--text);

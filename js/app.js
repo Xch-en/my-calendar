@@ -359,7 +359,7 @@ async function renderTodos() {
   if (!todos.length) {
     const empty = document.createElement('span');
     empty.className = 'todo-empty';
-    empty.textContent = '暂无待办，添加后拖到日历安排时间';
+    empty.textContent = '暂无待办，添加后按住左侧把手拖到日历安排时间';
     todoList.appendChild(empty);
     return;
   }
@@ -367,18 +367,26 @@ async function renderTodos() {
     const item = document.createElement('div');
     item.className = 'todo-item';
 
-    const chip = document.createElement('div');
-    chip.className = 'todo-chip';
-    chip.dataset.id = t.id;
-    chip.title = `${t.title}（拖到日历安排时间，或点按转新建）`;
+    // 左侧拖动把手：唯一可拖区域。无文字 + touch-action:none，
+    // 按下立即接管手势——不滚动列表、不触发系统选字/识别菜单
+    const handle = document.createElement('div');
+    handle.className = 'todo-handle';
+    handle.dataset.id = t.id;
+    handle.title = '按住拖到日历安排时间';
     const grip = document.createElement('span');
     grip.className = 'todo-grip';
     grip.textContent = '⠿';
+    handle.appendChild(grip);
+
+    // 标题区：点按转表单新建
+    const chip = document.createElement('div');
+    chip.className = 'todo-chip';
+    chip.title = `${t.title}（点按转新建表单）`;
     const title = document.createElement('span');
     title.className = 'todo-title';
     title.textContent = t.title;
-    chip.append(grip, title);
-    chip.addEventListener('click', () => { // 点按（未拖动）也可走表单
+    chip.appendChild(title);
+    chip.addEventListener('click', () => {
       const now = new Date();
       const start = new Date(now);
       start.setHours(now.getHours(), now.getMinutes() <= 30 ? 30 : 60, 0, 0);
@@ -396,7 +404,7 @@ async function renderTodos() {
       renderTodos();
     });
 
-    item.append(chip, del);
+    item.append(handle, chip, del);
     todoList.appendChild(item);
   }
 }
@@ -476,7 +484,7 @@ drawerBar.addEventListener('pointercancel', endPull);
 let todoDragActive = false;    // 正在从清单拖动待办
 let collapsedForDrag = false;  // 本次拖动是否已触发收回
 todoList.addEventListener('pointerdown', e => {
-  if (!e.target.closest('.todo-chip')) return;
+  if (!e.target.closest('.todo-handle')) return;
   todoDragActive = true;
   collapsedForDrag = false;
 });
@@ -512,10 +520,11 @@ async function scheduleTodo(todoId, start) {
   toast(`已安排「${todo.title}」`);
 }
 
-/* FullCalendar 外部拖拽：让托盘里的 Chip 可拖到日历上（触屏长按 350ms 后拖动） */
+/* FullCalendar 外部拖拽：只认行首把手。把手无滚动冲突，
+   触屏按住 150ms 即可跟手拖动（长按不会弹系统菜单） */
 new FullCalendar.Draggable(document.getElementById('todo-tray'), {
-  itemSelector: '.todo-chip',
-  longPressDelay: 350
+  itemSelector: '.todo-handle',
+  longPressDelay: 150
 });
 
 renderTodos();

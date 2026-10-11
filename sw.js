@@ -2,7 +2,7 @@
 'use strict';
 
 // 修改任何静态文件后，把版本号 +1，用户下次打开时自动更新缓存
-const CACHE_VERSION = 'my-calendar-v9';
+const CACHE_VERSION = 'my-calendar-v11';
 
 const APP_SHELL = [
   './',
@@ -20,11 +20,14 @@ const APP_SHELL = [
   './icons/apple-touch-icon.png'
 ];
 
-/* 安装：预缓存全部外壳资源，完成后立即接管页面 */
+/* 安装：预缓存全部外壳资源，完成后立即接管页面。
+   用 cache:'reload' 强制绕过 HTTP 缓存，确保每次安装都拿到磁盘最新文件 */
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(APP_SHELL))
+      .then(cache => Promise.all(APP_SHELL.map(url =>
+        cache.add(new Request(url, { cache: 'reload' }))
+      )))
       .then(() => self.skipWaiting())
   );
 });
