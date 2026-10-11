@@ -277,10 +277,9 @@ const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), 
   eventContent(info) {
     const ev = info.event;
     const loc = ev.extendedProps.location;
-    const isReminder = ev.extendedProps.type === 'reminder';
-    // 不显示时间行，标题直接置顶，短事项也能看清名称；提醒型加铃铛前缀
+    // 不显示时间行，标题直接置顶，短事项也能看清名称
     return {
-      html: `<div class="ev-title">${isReminder ? '🔔 ' : ''}${escapeHtml(ev.title)}</div>` +
+      html: `<div class="ev-title">${escapeHtml(ev.title)}</div>` +
              (loc ? `<div class="ev-loc">${escapeHtml(loc)}</div>` : '')
     };
   },
@@ -578,22 +577,18 @@ function buildTodoRow(t) {
   grip.textContent = '⠿';
   handle.appendChild(grip);
 
-  let marker;
+  // 任务：进度圆环（点按编辑进度）；提醒：无标记，靠时间轴上的白底描边样式区分
   if (t.type === 'task') {
-    marker = document.createElement('button');
-    marker.type = 'button';
-    marker.className = 'progress-ring';
-    marker.title = `进度 ${t.progress || 0}%，点按修改`;
-    marker.innerHTML = ringSVG(t.progress || 0);
-    marker.addEventListener('click', e => {
+    const ring = document.createElement('button');
+    ring.type = 'button';
+    ring.className = 'progress-ring';
+    ring.title = `进度 ${t.progress || 0}%，点按修改`;
+    ring.innerHTML = ringSVG(t.progress || 0);
+    ring.addEventListener('click', e => {
       e.stopPropagation();
       toggleProgressEditor(item, t);
     });
-  } else {
-    marker = document.createElement('span');
-    marker.className = 'type-icon';
-    marker.title = '提醒';
-    marker.textContent = '🔔';
+    item.appendChild(ring);
   }
 
   const chip = document.createElement('div');
@@ -624,7 +619,7 @@ function buildTodoRow(t) {
     renderDrawer();
   });
 
-  item.append(handle, marker, chip, del);
+  item.append(handle, chip, del);
   return item;
 }
 
