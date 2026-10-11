@@ -141,6 +141,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); o
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* 提醒型事项：空心描边样式，与实心的任务型区分 */
+.fc .fc-event.ev-reminder {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1.5px dashed !important;
+  box-shadow: none;
+}
+
 /* 边缘调整把手：加大触控热区（默认仅 7px 高，触屏几乎抓不到），
    并显示小横条提示可拖动上/下边缘。
    注意：FullCalendar 默认 display:none、仅悬停/选中显示——触屏没有 hover，
@@ -224,77 +231,154 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); o
 }
 .todo-tray.expanded .drawer-chevron { transform: rotate(135deg); } /* 展开后朝下：可收起 */
 
-/* 抽屉主体 */
-.todo-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 14px 2px; }
-.todo-input-row { flex: none; display: flex; gap: 8px; padding-bottom: 10px; }
-#todo-input {
-  flex: 1; min-width: 0; height: 42px;
-  border: 1.5px solid var(--border); border-radius: 12px;
-  padding: 0 12px;
-  font-size: 16px; font-family: inherit;
-  color: var(--text); background: #fbfcfe;
-  outline: none;
-  transition: border-color 0.15s, background 0.15s;
+/* 抽屉主体：两列模块清单 */
+.todo-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 12px 2px; }
+.todo-list {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 2px 2px 8px;
 }
-#todo-input:focus { border-color: var(--primary); background: #fff; }
-#todo-add {
-  flex: none;
-  width: 42px; height: 42px;
-  border: none; border-radius: 12px;
-  background: var(--primary); color: #fff;
-  font-size: 20px; line-height: 1;
-  cursor: pointer;
-}
-#todo-add:active { transform: scale(0.94); }
-
-/* 竖排待办清单 */
-.todo-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .todo-list::-webkit-scrollbar { width: 4px; }
 .todo-list::-webkit-scrollbar-thumb { background: #dcdfe9; border-radius: 4px; }
+.todo-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+/* 模块卡片 */
+.todo-module {
+  background: #f7f8fc;
+  border: 1px solid #eceff7;
+  border-radius: 12px;
+  padding: 8px;
+}
+.todo-module-head { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
+.module-title {
+  flex: 1; min-width: 0;
+  font-size: 12.5px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+}
+.module-mini-btn {
+  flex: none;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 7px;
+  background: #eaedf6; color: var(--text-2);
+  font-size: 13px; line-height: 1;
+  cursor: pointer;
+}
+.module-mini-btn:active { background: #dfe4f2; }
+.module-mini-btn.module-del.armed { background: var(--danger); color: #fff; }
+.module-todos { display: flex; flex-direction: column; }
+.add-module-btn {
+  width: 100%;
+  border: 1.5px dashed #c9d3f0; border-radius: 10px;
+  background: transparent; color: var(--text-2);
+  font-size: 12px; padding: 9px 6px;
+  cursor: pointer;
+}
+.add-module-btn:active { background: #f1f3fa; }
+
+/* 模块内添加待办行：先选类型，再输入 */
+.module-add-row {
+  display: flex; flex-direction: column; gap: 5px;
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px dashed #e3e7f2;
+}
+.type-toggle { display: flex; gap: 4px; }
+.type-btn {
+  flex: 1;
+  border: none; border-radius: 8px;
+  background: #eaedf6; color: var(--text-2);
+  font-size: 11px; font-weight: 600; padding: 5px 0;
+  cursor: pointer;
+}
+.type-btn.active { background: var(--primary); color: #fff; }
+.module-add-input {
+  width: 100%; height: 34px;
+  border: 1.5px solid var(--border); border-radius: 9px;
+  padding: 0 8px;
+  font-size: 13px; font-family: inherit;
+  color: var(--text); background: #fff;
+  outline: none;
+}
+.module-add-input:focus { border-color: var(--primary); }
+.module-rename {
+  flex: 1; min-width: 0; height: 24px;
+  border: 1.5px solid var(--primary); border-radius: 7px;
+  padding: 0 6px;
+  font-size: 12px; font-family: inherit;
+  outline: none;
+}
+
+/* 模块内待办行 */
 .todo-item {
   flex: none;
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 2px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+  padding: 5px 2px;
   border-bottom: 1px solid #f0f2f8;
 }
 .todo-item:last-child { border-bottom: none; }
-/* 左侧拖动把手：唯一的拖动区域，尺寸够大、无文字，
+.todo-item.reordering {
+  position: relative; z-index: 5;
+  background: #fff; border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(20, 26, 55, 0.22);
+}
+/* 左侧拖动把手：唯一的拖动区域，无文字，
    touch-action:none 让按下立即接管手势（不滚动、不选字、无系统长按菜单） */
 .todo-handle {
   flex: none;
-  width: 42px; height: 42px;
+  width: 28px; height: 32px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 12px;
-  background: #f1f3fa;
+  border-radius: 9px;
+  background: #eef1f8;
   cursor: grab;
   touch-action: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
-.todo-handle:active { background: #e4e9f8; cursor: grabbing; }
-.todo-grip { color: #98a3bd; font-size: 20px; line-height: 1; }
+.todo-handle:active { background: #e2e7f5; cursor: grabbing; }
+.todo-grip { color: #98a3bd; font-size: 17px; line-height: 1; }
+.progress-ring {
+  flex: none;
+  width: 20px; height: 20px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent;
+  cursor: pointer;
+}
+.type-icon { flex: none; width: 20px; text-align: center; font-size: 10px; }
 .todo-chip {
   flex: 1; min-width: 0;
   display: flex; align-items: center;
   padding: 2px;
-  cursor: pointer; /* 点按转表单；拖动请用左侧把手 */
+  cursor: pointer; /* 点按转表单；排序请长按标题，拖动安排请用把手 */
 }
 .todo-title {
   flex: 1; min-width: 0;
-  font-size: 15px; color: var(--text);
+  font-size: 13px; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.progress-editor {
+  flex-basis: 100%;
+  display: flex; align-items: center; gap: 6px;
+  padding: 2px 2px 6px 28px;
+}
+.progress-editor input[type="range"] { flex: 1; min-width: 0; accent-color: var(--primary); }
+.progress-val { flex: none; font-size: 11px; font-weight: 700; color: var(--primary); min-width: 30px; text-align: right; }
 .todo-x {
   flex: none;
-  width: 28px; height: 28px;
+  width: 26px; height: 26px;
   display: flex; align-items: center; justify-content: center;
   border: none; border-radius: 50%;
   background: transparent; color: var(--text-2);
-  font-size: 17px; line-height: 1;
+  font-size: 16px; line-height: 1;
   cursor: pointer;
 }
 .todo-x:hover { background: #fdecec; color: var(--danger); }
-.todo-empty { padding: 30px 0; text-align: center; font-size: 13px; color: var(--text-2); }
+.todo-empty { padding: 30px 6px; text-align: center; font-size: 13px; color: var(--text-2); }
 
 /* ===================== 悬浮新建按钮 ===================== */
 .fab {
