@@ -407,18 +407,38 @@ function ringSVG(progress) {
 }
 
 async function renderDrawer() {
-  const [modules, todos] = await Promise.all([
+  let [modules, todos] = await Promise.all([
     db.modules.orderBy('order').toArray(),
     db.todos.orderBy('order').toArray()
   ]);
+
+  // 兜底：存在无归属待办（如手动清库后）时，自动建一个默认分组收留
+  const orphans = todos.filter(t => !modules.some(m => m.id === t.moduleId));
+  if (orphans.length) {
+    const id = await db.modules.add({
+      title: '默认',
+      order: modules.length ? Math.max(...modules.map(m => m.order)) + 1 : 0,
+      column: 1
+    });
+    for (const [i, t] of orphans.entries()) {
+      await db.todos.update(t.id, { moduleId: id, order: i, type: t.type || 'task', progress: t.progress || 0 });
+    }
+    return renderDrawer();
+  }
+
   document.getElementById('todo-count').textContent = todos.length;
   todoList.innerHTML = '';
 
   if (!modules.length) {
+    // 一个分组都没有时也要能自救：给出提示和新建入口
     const empty = document.createElement('div');
     empty.className = 'todo-empty';
-    empty.textContent = '点「＋ 新建模块」建立科目分组，再往里添加待办';
+    empty.textContent = '还没有分组，点下方按钮新建一个';
     todoList.appendChild(empty);
+    const col = document.createElement('div');
+    col.className = 'todo-col';
+    col.appendChild(buildAddModuleBtn(1));
+    todoList.appendChild(col);
     return;
   }
 
@@ -429,14 +449,14 @@ async function renderDrawer() {
   });
   for (const m of modules) {
     const mTodos = todos.filter(t => t.moduleId === m.id).sort((a, b) => a.order - b.order);
-    cols[m.column === 2 ? 1 : 0].appendChild(buildModuleEl(m, mTodos));
+    cols[m.column === 2 ? 1 : 0].appendChild(buildModuleEl(m, mTodos, modules.length));
   }
   cols.forEach((col, i) => col.appendChild(buildAddModuleBtn(i + 1)));
   todoList.append(cols[0], cols[1]);
 }
 
-/* 模块：标题（点按改名）+ 添加待办 + 删除 */
-function buildModuleEl(m, mTodos) {
+/* 模块：标题（点按改名）+ 添加待办 + 删除（至少保留一个分组） */
+function buildModuleEl(m, mTodos, moduleCount) {
   const mod = document.createElement('div');
   mod.className = 'todo-module';
   mod.dataset.id = m.id;
@@ -459,8 +479,10 @@ function buildModuleEl(m, mTodos) {
   delBtn.className = 'module-mini-btn module-del';
   delBtn.textContent = '×';
   delBtn.setAttribute('aria-label', '删除模块（连同情内待办及其时间轴事项）');
-  delBtn.addEventListener('click', e => {
+  delBtn.addEventListener('click', async e => {
     const b = e.currentTarget;
+    // 至少保留一个分组：最后一个模块不可删除，可点标题改名
+    if (moduleCount <= 1) { toast('至少保留一个分组，可点分组名修改'); return; }
     if (b.dataset.armed) {
       removeModule(m);
     } else { // 两段式确认
