@@ -36,23 +36,13 @@ function colorFor(id) {
 }
 
 function rowToEvent(row) {
-  const reminder = row.type === 'reminder'; // 提醒型：空心描边显示
-  const color = colorFor(row.id);
   return {
     id: String(row.id),
     title: row.title,
     start: row.start,           // ISO 字符串
     end: row.end,
-    backgroundColor: reminder ? 'rgba(255, 255, 255, 0.96)' : color,
-    borderColor: color,
-    textColor: reminder ? color : '#fff',
-    classNames: reminder ? ['ev-reminder'] : [],
-    extendedProps: {
-      location: row.location || '',
-      type: row.type || 'task',
-      progress: row.progress || 0,
-      todoId: row.todoId ?? null
-    }
+    backgroundColor: colorFor(row.id), // 统一实心色块
+    extendedProps: { location: row.location || '' }
   };
 }
 
@@ -86,13 +76,30 @@ const fEnd = document.getElementById('f-end');
 const formError = document.getElementById('form-error');
 const sheetHeading = document.getElementById('sheet-heading');
 const btnDelete = document.getElementById('btn-delete');
+const fRepeatMode = document.getElementById('f-repeat-mode');
+const fRepeatCount = document.getElementById('f-repeat-count');
+const fRepeatWrap = document.getElementById('f-repeat-wrap');
+const fStartHint = document.getElementById('f-start-hint');
+const fEndHint = document.getElementById('f-end-hint');
+
+/* 重复模式切换 + 开始/结束时间旁的星期几提示 */
+function syncRepeatUI() {
+  fRepeatWrap.hidden = fRepeatMode.value !== 'weekly';
+}
+fRepeatMode.addEventListener('change', syncRepeatUI);
+
+const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+function updateDayHints() {
+  [[fStart, fStartHint], [fEnd, fEndHint]].forEach(([inp, hint]) => {
+    const d = inp.value ? new Date(inp.value) : null;
+    hint.textContent = d && !isNaN(d) ? `${d.getMonth() + 1}月${d.getDate()}日 ${WEEKDAY_NAMES[d.getDay()]}` : '';
+  });
+}
+fStart.addEventListener('input', updateDayHints);
+fEnd.addEventListener('input', updateDayHints);
 
 let editingId = null;   // null = 新建
 let deleteArmed = false;
-let sourceTodoId = null;   // 由待办转建事项时，记录待办 id（保留待办，双向同步）
-let sourceTodoType = null; // 来源待办的类型（task / reminder）
-let editingType = 'task';  // 编辑中的事项类型
-let editingTodoId = null;  // 编辑中的事项关联的待办 id
 let suppressCreateUntil = 0; // 关闭弹层后的一小段时间内，点空白不触发新建（防止“收起表单”的那一下误触）
 
 function openSheet() {
@@ -111,10 +118,6 @@ function closeSheet() {
     btnDelete.hidden = true;
     disarmDelete();
     editingId = null;
-    sourceTodoId = null;
-    sourceTodoType = null;
-    editingType = 'task';
-    editingTodoId = null;
   }, 220);
 }
 
@@ -126,22 +129,21 @@ function disarmDelete() {
 
 function openCreate(start, end, preset = {}) {
   editingId = null;
-  sourceTodoId = preset.todoId ?? null;
-  sourceTodoType = preset.type || null;
   sheetHeading.textContent = '新建事项';
   btnDelete.hidden = true;
   fTitle.value = preset.title || '';
   fLoc.value = preset.location || '';
   fStart.value = toLocalInput(start);
   fEnd.value = toLocalInput(end);
+  fRepeatMode.value = 'once';
+  syncRepeatUI();
+  updateDayHints();
   openSheet();
   if (matchMedia('(hover: hover)').matches) setTimeout(() => fTitle.focus(), 240);
 }
 
 function openEdit(ev) {
   editingId = Number(ev.id);
-  editingType = ev.extendedProps.type || 'task';
-  editingTodoId = ev.extendedProps.todoId ?? null;
   sheetHeading.textContent = '事项详情';
   btnDelete.hidden = false;
   disarmDelete();
@@ -149,6 +151,9 @@ function openEdit(ev) {
   fLoc.value = ev.extendedProps.location || '';
   fStart.value = toLocalInput(ev.start);
   fEnd.value = toLocalInput(ev.end);
+  fRepeatMode.value = 'once';
+  syncRepeatUI();
+  updateDayHints();
   openSheet();
 }
 
@@ -167,24 +172,43 @@ form.addEventListener('submit', async e => {
     start: start.toISOString(),
     end: end.toISOString()
   };
+  // 重复：每周 × N 周，保存时生成后续每周的副本（各自独立，可单独删改）
+  let weeks = 1;
+  if (fRepeatMode.value === 'weekly') {
+    weeks = Math.max(1, Math.min(52, parseInt(fRepeatCount.value, 10) || 1));
+  }
+  const WEEK_MS = 7 * 86400000;
   try {
     if (editingId == null) {
-      rec.type = sourceTodoType || 'task';
-      rec.todoId = sourceTodoId; // 关联来源待办（保留在清单里）
-      await db.events.add(rec);
-      toast('已添加');
-      if (sourceTodoId != null) {
-        await db.todos.update(sourceTodoId, { title: rec.title }); // 标题与清单保持同步
-        renderDrawer();
+      const recs = [rec];
+      for (let i = 1; i < weeks; i++) {
+        recs.push({
+          title,
+          location: fLoc.value.trim(),
+          repeat: weeks,
+          start: new Date(start.getTime() + i * WEEK_MS).toISOString(),
+          end: new Date(end.getTime() + i * WEEK_MS).toISOString()
+        });
       }
+      await db.events.bulkAdd(recs);
+      toast(weeks > 1 ? `已添加，连续 ${weeks} 周` : '已添加');
     } else {
-      rec.type = editingType;
-      rec.todoId = editingTodoId;
       await db.events.update(editingId, rec);
-      toast('已保存');
-      if (editingTodoId != null) {
-        await db.todos.update(editingTodoId, { title: rec.title });
-        renderDrawer();
+      if (weeks > 1) {
+        const extra = [];
+        for (let i = 1; i < weeks; i++) {
+          extra.push({
+            title,
+            location: fLoc.value.trim(),
+            repeat: weeks,
+            start: new Date(start.getTime() + i * WEEK_MS).toISOString(),
+            end: new Date(end.getTime() + i * WEEK_MS).toISOString()
+          });
+        }
+        await db.events.bulkAdd(extra);
+        toast(`已保存，并续加 ${weeks - 1} 周`);
+      } else {
+        toast('已保存');
       }
     }
     calendar.refetchEvents();
@@ -391,7 +415,8 @@ document.getElementById('btn-add').addEventListener('click', () => {
   openCreate(start, new Date(start.getTime() + 3600000));
 });
 
-/* ===================== 底部待办抽屉：两列模块化清单 ===================== */
+/* ===================== 底部待办清单 ===================== */
+const todoInput = document.getElementById('todo-input');
 const todoList = document.getElementById('todo-list');
 
 /* 进度圆环 SVG */
@@ -405,164 +430,22 @@ function ringSVG(progress) {
     `stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off}" transform="rotate(-90 8 8)"></circle></svg>`;
 }
 
-async function renderDrawer() {
-  let [modules, todos] = await Promise.all([
-    db.modules.orderBy('order').toArray(),
-    db.todos.orderBy('order').toArray()
-  ]);
-
-  // 兜底：存在无归属待办（如手动清库后）时，自动建一个默认分组收留
-  const orphans = todos.filter(t => !modules.some(m => m.id === t.moduleId));
-  if (orphans.length) {
-    const id = await db.modules.add({
-      title: '默认',
-      order: modules.length ? Math.max(...modules.map(m => m.order)) + 1 : 0,
-      column: 1
-    });
-    for (const [i, t] of orphans.entries()) {
-      await db.todos.update(t.id, { moduleId: id, order: i, type: t.type || 'task', progress: t.progress || 0 });
-    }
-    return renderDrawer();
-  }
-
+async function renderTodos() {
+  const todos = await db.todos.orderBy('order').toArray();
   document.getElementById('todo-count').textContent = todos.length;
   todoList.innerHTML = '';
-
-  if (!modules.length) {
-    // 一个分组都没有时也要能自救：给出提示和新建入口
-    const empty = document.createElement('div');
+  if (!todos.length) {
+    const empty = document.createElement('span');
     empty.className = 'todo-empty';
-    empty.textContent = '还没有分组，点下方按钮新建一个';
+    empty.textContent = '暂无待办，添加后按住左侧把手拖到日历安排时间';
     todoList.appendChild(empty);
-    const col = document.createElement('div');
-    col.className = 'todo-col';
-    col.appendChild(buildAddModuleBtn(1));
-    todoList.appendChild(col);
     return;
   }
-
-  const cols = [0, 1].map(() => {
-    const d = document.createElement('div');
-    d.className = 'todo-col';
-    return d;
-  });
-  for (const m of modules) {
-    const mTodos = todos.filter(t => t.moduleId === m.id).sort((a, b) => a.order - b.order);
-    cols[m.column === 2 ? 1 : 0].appendChild(buildModuleEl(m, mTodos, modules.length));
-  }
-  cols.forEach((col, i) => col.appendChild(buildAddModuleBtn(i + 1)));
-  todoList.append(cols[0], cols[1]);
+  const sorted = [...todos].sort((a, b) => (a.order - b.order) || (a.createdAt - b.createdAt));
+  for (const t of sorted) todoList.appendChild(buildTodoRow(t));
 }
 
-/* 模块：标题（点按改名）+ 添加待办 + 删除（至少保留一个分组） */
-function buildModuleEl(m, mTodos, moduleCount) {
-  const mod = document.createElement('div');
-  mod.className = 'todo-module';
-  mod.dataset.id = m.id;
-
-  const head = document.createElement('div');
-  head.className = 'todo-module-head';
-  const title = document.createElement('span');
-  title.className = 'module-title';
-  title.textContent = m.title;
-  title.title = '点按修改模块名称';
-  title.addEventListener('click', () => startRenameModule(title, m));
-  const addBtn = document.createElement('button');
-  addBtn.type = 'button';
-  addBtn.className = 'module-mini-btn';
-  addBtn.textContent = '＋';
-  addBtn.setAttribute('aria-label', '添加待办');
-  addBtn.addEventListener('click', () => toggleModuleAddRow(mod));
-  const delBtn = document.createElement('button');
-  delBtn.type = 'button';
-  delBtn.className = 'module-mini-btn module-del';
-  delBtn.textContent = '×';
-  delBtn.setAttribute('aria-label', '删除模块（连同情内待办及其时间轴事项）');
-  delBtn.addEventListener('click', async e => {
-    const b = e.currentTarget;
-    // 至少保留一个分组：最后一个模块不可删除，可点标题改名
-    if (moduleCount <= 1) { toast('至少保留一个分组，可点分组名修改'); return; }
-    if (b.dataset.armed) {
-      removeModule(m);
-    } else { // 两段式确认
-      b.dataset.armed = '1';
-      b.classList.add('armed');
-      b.textContent = '确认';
-      setTimeout(() => { b.dataset.armed = ''; b.classList.remove('armed'); b.textContent = '×'; }, 2500);
-    }
-  });
-  head.append(title, addBtn, delBtn);
-
-  const listEl = document.createElement('div');
-  listEl.className = 'module-todos';
-  for (const t of mTodos) listEl.appendChild(buildTodoRow(t));
-
-  const addRow = buildTodoAddRow(m);
-  addRow.hidden = true;
-
-  mod.append(head, listEl, addRow);
-  return mod;
-}
-
-/* 模块内“添加待办”行：先选类型（任务/提醒），输入后回车或 ✓ */
-function buildTodoAddRow(m) {
-  const row = document.createElement('div');
-  row.className = 'module-add-row';
-  let type = 'task';
-  const toggle = document.createElement('div');
-  toggle.className = 'type-toggle';
-  const mk = (label, val) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'type-btn' + (val === type ? ' active' : '');
-    b.textContent = label;
-    b.title = val === 'task' ? '任务：需要花时间完成，可记录进度' : '提醒：只是放进时间轴提醒一下';
-    b.addEventListener('click', () => {
-      type = val;
-      toggle.querySelectorAll('.type-btn').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-    });
-    return b;
-  };
-  toggle.append(mk('任务', 'task'), mk('提醒', 'reminder'));
-  const input = document.createElement('input');
-  input.className = 'module-add-input';
-  input.type = 'text';
-  input.maxLength = 60;
-  input.placeholder = '待办内容…';
-  const submit = async () => {
-    const title = input.value.trim();
-    if (!title) { input.focus(); return; }
-    const siblings = await db.todos.where('moduleId').equals(m.id).toArray();
-    await db.todos.add({
-      title, type, moduleId: m.id,
-      order: siblings.length ? Math.max(...siblings.map(s => s.order)) + 1 : 0,
-      progress: 0,
-      createdAt: Date.now()
-    });
-    renderDrawer();
-  };
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
-  const ok = document.createElement('button');
-  ok.type = 'button';
-  ok.className = 'module-mini-btn ok';
-  ok.textContent = '✓';
-  ok.setAttribute('aria-label', '确认添加');
-  ok.addEventListener('click', submit);
-  row.append(toggle, input, ok);
-  return row;
-}
-
-function toggleModuleAddRow(mod) {
-  const row = mod.querySelector('.module-add-row');
-  row.hidden = !row.hidden;
-  if (!row.hidden) {
-    row.querySelector('.module-add-input').focus();
-    row.scrollIntoView({ block: 'nearest' });
-  }
-}
-
-/* 单条待办行：把手 + 进度圆环/提醒标记 + 标题 + 删除 */
+/* 单条待办行：把手 + 进度圆环 + 标题 + 删除（所有待办同一类） */
 function buildTodoRow(t) {
   const item = document.createElement('div');
   item.className = 'todo-item';
@@ -577,19 +460,16 @@ function buildTodoRow(t) {
   grip.textContent = '⠿';
   handle.appendChild(grip);
 
-  // 任务：进度圆环（点按编辑进度）；提醒：无标记，靠时间轴上的白底描边样式区分
-  if (t.type === 'task') {
-    const ring = document.createElement('button');
-    ring.type = 'button';
-    ring.className = 'progress-ring';
-    ring.title = `进度 ${t.progress || 0}%，点按修改`;
-    ring.innerHTML = ringSVG(t.progress || 0);
-    ring.addEventListener('click', e => {
-      e.stopPropagation();
-      toggleProgressEditor(item, t);
-    });
-    item.appendChild(ring);
-  }
+  // 进度圆环（点按编辑进度）
+  const ring = document.createElement('button');
+  ring.type = 'button';
+  ring.className = 'progress-ring';
+  ring.title = `进度 ${t.progress || 0}%，点按修改`;
+  ring.innerHTML = ringSVG(t.progress || 0);
+  ring.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleProgressEditor(item, t);
+  });
 
   const chip = document.createElement('div');
   chip.className = 'todo-chip';
@@ -604,24 +484,39 @@ function buildTodoRow(t) {
     const now = new Date();
     const start = new Date(now);
     start.setHours(now.getHours(), now.getMinutes() <= 30 ? 30 : 60, 0, 0);
-    openCreate(start, new Date(start.getTime() + 3600000), { title: t.title, todoId: t.id, type: t.type });
+    openCreate(start, new Date(start.getTime() + 3600000), { title: t.title });
   });
 
   const del = document.createElement('button');
   del.type = 'button';
   del.className = 'todo-x';
-  del.setAttribute('aria-label', '删除待办（连同其时间轴事项）');
+  del.setAttribute('aria-label', '删除待办');
   del.textContent = '×';
   del.addEventListener('click', async e => {
     e.stopPropagation();
-    await removeTodoEvents(t.id); // 同步删除时间轴上该待办的事项
     await db.todos.delete(t.id);
-    renderDrawer();
+    renderTodos();
   });
 
-  item.append(handle, chip, del);
+  item.append(handle, ring, chip, del);
   return item;
 }
+
+async function addTodo() {
+  const title = todoInput.value.trim();
+  if (!title) { todoInput.focus(); return; }
+  const all = await db.todos.orderBy('order').toArray();
+  await db.todos.add({
+    title,
+    order: all.length ? Math.max(...all.map(x => x.order)) + 1 : 0,
+    progress: 0,
+    createdAt: Date.now()
+  });
+  todoInput.value = '';
+  renderTodos();
+}
+document.getElementById('todo-add').addEventListener('click', addTodo);
+todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
 
 /* 进度编辑：滑杆实时保存 */
 function toggleProgressEditor(item, t) {
@@ -648,65 +543,6 @@ function toggleProgressEditor(item, t) {
   item.appendChild(ed);
 }
 
-/* 模块改名 */
-function startRenameModule(titleSpan, m) {
-  const input = document.createElement('input');
-  input.className = 'module-rename';
-  input.value = m.title;
-  input.maxLength = 20;
-  titleSpan.replaceWith(input);
-  input.focus();
-  input.select();
-  let finished = false;
-  const done = async save => {
-    if (finished) return;
-    finished = true;
-    if (save) {
-      const v = input.value.trim();
-      if (v && v !== m.title) await db.modules.update(m.id, { title: v });
-    }
-    renderDrawer();
-  };
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') done(true);
-    if (e.key === 'Escape') done(false);
-  });
-  input.addEventListener('blur', () => done(true));
-}
-
-/* 删除模块：连同情内待办及其时间轴事项 */
-async function removeModule(m) {
-  const todos = await db.todos.where('moduleId').equals(m.id).toArray();
-  for (const t of todos) await removeTodoEvents(t.id);
-  await db.todos.bulkDelete(todos.map(t => t.id));
-  await db.modules.delete(m.id);
-  renderDrawer();
-}
-
-async function removeTodoEvents(todoId) {
-  const evs = await db.events.where('todoId').equals(todoId).toArray();
-  await db.events.bulkDelete(evs.map(e => e.id));
-}
-
-function buildAddModuleBtn(column) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'add-module-btn';
-  btn.textContent = '＋ 新建模块';
-  btn.addEventListener('click', async () => {
-    const inCol = (await db.modules.toArray()).filter(x => x.column === column);
-    const id = await db.modules.add({
-      title: '新模块',
-      column,
-      order: inCol.length ? Math.max(...inCol.map(x => x.order)) + 1 : 0
-    });
-    await renderDrawer();
-    const modEl = todoList.querySelector(`.todo-module[data-id="${id}"]`);
-    if (modEl) startRenameModule(modEl.querySelector('.module-title'), { id, title: '新模块' });
-  });
-  return btn;
-}
-
 /* 模块内上下拖动排序：按住标题 300ms 进入排序，松手保存 */
 function enableReorder(chip, item) {
   let pressTimer = null, startY = 0, active = false, moved = false;
@@ -719,7 +555,7 @@ function enableReorder(chip, item) {
     }
     const dy = e.clientY - startY;
     item.style.transform = `translateY(${dy}px)`;
-    const listEl = item.closest('.module-todos');
+    const listEl = item.closest('.todo-list');
     const children = [...listEl.children];
     const idx = children.indexOf(item);
     const rowH = item.offsetHeight + 1;
@@ -745,11 +581,11 @@ function enableReorder(chip, item) {
     item.style.transform = '';
     if (!cancelled) {
       item.dataset.reordered = '1'; // 吞掉松手后的那次点击
-      const listEl = item.closest('.module-todos');
+      const listEl = item.closest('.todo-list');
       const ids = [...listEl.querySelectorAll('.todo-item')].map(x => Number(x.dataset.id));
       await Promise.all(ids.map((id, i) => db.todos.update(id, { order: i })));
     }
-    renderDrawer();
+    renderTodos();
   };
   const onUp = () => finish(false);
   const onCancel = () => finish(true);
@@ -852,22 +688,24 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('pointerup', () => { todoDragActive = false; });
 document.addEventListener('pointercancel', () => { todoDragActive = false; });
 
-/* 拖放到日历后：创建默认 1 小时的事项（带类型并关联待办），待办保留在清单里 */
+/* 拖放到日历后：创建默认 1 小时的事项，并消耗该待办 */
 async function scheduleTodo(todoId, start) {
   const todo = await db.todos.get(todoId);
   if (!todo) return;
   const end = new Date(start.getTime() + 3600000);
-  await db.events.add({
-    title: todo.title,
-    location: '',
-    type: todo.type || 'task',
-    todoId,
-    start: start.toISOString(),
-    end: end.toISOString()
+  await db.transaction('rw', db.events, db.todos, async () => {
+    await db.events.add({
+      title: todo.title,
+      location: '',
+      start: start.toISOString(),
+      end: end.toISOString()
+    });
+    await db.todos.delete(todoId);
   });
   calendar.refetchEvents();
+  renderTodos();
   setTray(false); // 安排完成后自动收回抽屉，露出日历看安排结果
-  toast(`已安排「${todo.title}」到时间轴`);
+  toast(`已安排「${todo.title}」`);
 }
 
 /* FullCalendar 外部拖拽：只认行首把手。把手无滚动冲突，
@@ -878,7 +716,7 @@ new FullCalendar.Draggable(document.getElementById('todo-tray'), {
   autoscroll: true // 拖到日历边缘时自动滚动时间轴
 });
 
-renderDrawer();
+renderTodos();
 
 /* 触屏长按不再弹出系统的复制/选择菜单（配合 CSS user-select:none 双保险） */
 document.addEventListener('contextmenu', e => {

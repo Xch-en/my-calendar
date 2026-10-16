@@ -45,6 +45,11 @@
               aria-label="展开或收起待办"></span>
       </div>
       <div class="todo-body">
+        <div class="todo-input-row">
+          <input id="todo-input" type="text" maxlength="60" autocomplete="off"
+                 placeholder="添加待办，按住左侧把手拖到日历安排" />
+          <button id="todo-add" type="button" aria-label="添加待办">＋</button>
+        </div>
         <div class="todo-list" id="todo-list"></div>
       </div>
     </footer>
@@ -70,10 +75,24 @@
           <div class="field">
             <label for="f-start">开始时间</label>
             <input id="f-start" type="datetime-local" />
+            <div class="dt-hint" id="f-start-hint"></div>
           </div>
           <div class="field">
             <label for="f-end">结束时间</label>
             <input id="f-end" type="datetime-local" />
+            <div class="dt-hint" id="f-end-hint"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-repeat-mode">重复</label>
+          <div class="repeat-row">
+            <select id="f-repeat-mode">
+              <option value="once">仅此一次</option>
+              <option value="weekly">每周重复</option>
+            </select>
+            <span class="repeat-count" id="f-repeat-wrap" hidden>
+              连续 <input id="f-repeat-count" type="number" min="1" max="52" value="2" /> 周
+            </span>
           </div>
         </div>
         <p class="form-error" id="form-error" role="alert"></p>
