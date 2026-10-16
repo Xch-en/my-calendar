@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#4f6ef7" />
+  <title>导入课表 · 我的日程</title>
+  <style>
+    :root { --primary: #4f6ef7; --text: #1c2333; --text-2: #7a8299; --border: #e7eaf3; --danger: #e5484d; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #e9ebf2; color: var(--text); padding: 20px;
+    }
+    .card {
+      width: 100%; max-width: 420px;
+      background: #fff; border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 8px 32px rgba(18, 24, 55, 0.12);
+    }
+    h1 { margin: 0 0 10px; font-size: 20px; }
+    p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.6; color: var(--text-2); }
+    .note { background: #f2f4fb; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; }
+    button {
+      width: 100%; height: 48px; margin-top: 14px;
+      border: none; border-radius: 14px;
+      background: var(--primary); color: #fff;
+      font-size: 16px; font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; }
+    pre {
+      margin: 14px 0 0; padding: 12px;
+      background: #f7f8fc; border-radius: 12px;
+      font-size: 12.5px; line-height: 1.7;
+      white-space: pre-wrap; word-break: break-all;
+      display: none;
+    }
+    .back { display: block; margin-top: 14px; text-align: center; font-size: 13px; color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>导入课表</h1>
+    <p>把 2026-09-14（周一）起共 16 周的课表写入<b>本设备</b>的日历数据库：9 门常规课 ×16 周 + 电电实验（第 5–14 周），共 154 条。</p>
+    <p class="note">⚠️ 数据只保存在当前设备/当前浏览器里，应用没有云同步。请用<b>平时打开日历的同一个浏览器</b>打开本页。重复导入会自动跳过已存在的课程，不会产生重复。</p>
+    <button id="go">开始导入</button>
+    <pre id="out"></pre>
+    <a class="back" href="./index.html">← 返回日历</a>
+  </div>
+
+  <script src="lib/dexie.min.js"></script>
+  <script>
+    // 与主应用一致的数据库结构
+    const db = new Dexie('my-calendar');
+    db.version(1).stores({ events: '++id, start' });
+    db.version(2).stores({ events: '++id, start', todos: '++id, createdAt' });
+    db.version(3).stores({
+      events: '++id, start, todoId',
+      todos: '++id, moduleId, order',
+      modules: '++id, order'
+    });
+
+    const COURSES = [
+      { dow: 1, start: '08:00', end: '09:35', title: '大学物理' },
+      { dow: 1, start: '13:30', end: '15:05', title: '滑冰课' },
+      { dow: 1, start: '15:20', end: '16:55', title: '英语口译入门' },
+      { dow: 2, start: '09:50', end: '12:15', title: '数据与算法' },
+      { dow: 2, start: '19:20', end: '20:55', title: '国家安全教育' },
+      { dow: 3, start: '09:50', end: '12:15', title: '复变函数与数理方程' },
+      { dow: 4, start: '09:50', end: '11:25', title: '大学物理' },
+      { dow: 5, start: '09:50', end: '11:25', title: '电子电路与系统基础' },
+      { dow: 5, start: '13:30', end: '16:00', title: '马克思主义基本原理' }
+    ];
+    const WEEK1_MON = new Date(2026, 8, 14); // 第一周周一：2026-09-14
+
+    function iso(addDays, hh, mm) {
+      const b = new Date(WEEK1_MON.getFullYear(), WEEK1_MON.getMonth(), WEEK1_MON.getDate() + addDays, hh, mm, 0, 0);
+      return b.toISOString();
+    }
+
+    function buildRecs() {
+      const recs = [];
+      for (const c of COURSES) {
+        const [sh, sm] = c.start.split(':').map(Number);
+        const [eh, em] = c.end.split(':').map(Number);
+        for (let w = 0; w < 16; w++) {
+          const off = w * 7 + (c.dow - 1);
+          recs.push({ title: c.title, location: '', repeat: 16, start: iso(off, sh, sm), end: iso(off, eh, em) });
+        }
+      }
+      for (let w = 4; w <= 13; w++) { // 电电实验：第 5~14 周
+        const off = w * 7 + 2;
+        recs.push({ title: '电电实验', location: '', repeat: 10, start: iso(off, 15, 20), end: iso(off, 16, 55) });
+      }
+      return recs;
+    }
+
+    document.getElementById('go').addEventListener('click', async () => {
+      const btn = document.getElementById('go');
+      const out = document.getElementById('out');
+      btn.disabled = true;
+      btn.textContent = '导入中…';
+      out.style.display = 'block';
+      try {
+        const recs = buildRecs();
+        const existing = await db.events.toArray();
+        const have = new Set(existing.map(e => e.title + '|' + e.start));
+        const fresh = recs.filter(r => !have.has(r.title + '|' + r.start));
+        if (fresh.length) await db.events.bulkAdd(fresh);
+        out.textContent =
+          '课表共 ' + recs.length + ' 条\n' +
+          '本次新增 ' + fresh.length + ' 条\n' +
+          '跳过已存在 ' + (recs.length - fresh.length) + ' 条\n\n' +
+          (fresh.length ? '✅ 完成！返回日历即可看到课表。' : '✅ 课表本来就已在本设备上，无需重复导入。');
+      } catch (err) {
+        out.textContent = '❌ 导入失败：' + (err && err.message || err);
+      }
+      btn.disabled = false;
+      btn.textContent = '再次导入';
+    });
+  </script>
+</body>
+</html>
