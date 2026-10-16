@@ -518,6 +518,57 @@ async function addTodo() {
 document.getElementById('todo-add').addEventListener('click', addTodo);
 todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
 
+/* ===================== 课表导入（换设备/换浏览器后，写入当前应用自己的数据库） ===================== */
+const COURSE_SCHEDULE = (() => {
+  const COURSES = [
+    { dow: 1, start: '08:00', end: '09:35', title: '大学物理' },
+    { dow: 1, start: '13:30', end: '15:05', title: '滑冰课' },
+    { dow: 1, start: '15:20', end: '16:55', title: '英语口译入门' },
+    { dow: 2, start: '09:50', end: '12:15', title: '数据与算法' },
+    { dow: 2, start: '19:20', end: '20:55', title: '国家安全教育' },
+    { dow: 3, start: '09:50', end: '12:15', title: '复变函数与数理方程' },
+    { dow: 4, start: '09:50', end: '11:25', title: '大学物理' },
+    { dow: 5, start: '09:50', end: '11:25', title: '电子电路与系统基础' },
+    { dow: 5, start: '13:30', end: '16:00', title: '马克思主义基本原理' }
+  ];
+  const WEEK1_MON = new Date(2026, 8, 14); // 第一周周一：2026-09-14
+  const iso = (addDays, hh, mm) => {
+    const b = new Date(WEEK1_MON.getFullYear(), WEEK1_MON.getMonth(), WEEK1_MON.getDate() + addDays, hh, mm, 0, 0);
+    return b.toISOString();
+  };
+  return () => {
+    const recs = [];
+    for (const c of COURSES) {
+      const [sh, sm] = c.start.split(':').map(Number);
+      const [eh, em] = c.end.split(':').map(Number);
+      for (let w = 0; w < 16; w++) {
+        const off = w * 7 + (c.dow - 1);
+        recs.push({ title: c.title, location: '', repeat: 16, start: iso(off, sh, sm), end: iso(off, eh, em) });
+      }
+    }
+    for (let w = 4; w <= 13; w++) { // 电电实验：第 5~14 周
+      const off = w * 7 + 2;
+      recs.push({ title: '电电实验', location: '', repeat: 10, start: iso(off, 15, 20), end: iso(off, 16, 55) });
+    }
+    return recs;
+  };
+})();
+
+async function importSchedule() {
+  try {
+    const recs = COURSE_SCHEDULE();
+    const existing = await db.events.toArray();
+    const have = new Set(existing.map(e => e.title + '|' + e.start));
+    const fresh = recs.filter(r => !have.has(r.title + '|' + r.start));
+    if (fresh.length) await db.events.bulkAdd(fresh);
+    calendar.refetchEvents();
+    toast(fresh.length ? `已导入 ${fresh.length} 条课程` : '课表已存在，无新增');
+  } catch (err) {
+    toast('导入失败，请重试');
+  }
+}
+document.getElementById('btn-import-schedule').addEventListener('click', importSchedule);
+
 /* 进度编辑：滑杆实时保存 */
 function toggleProgressEditor(item, t) {
   const existing = item.querySelector('.progress-editor');

@@ -319,6 +319,16 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); o
 }
 .todo-x:hover { background: #fdecec; color: var(--danger); }
 .todo-empty { padding: 30px 6px; text-align: center; font-size: 13px; color: var(--text-2); }
+.import-btn {
+  flex: none;
+  margin: 8px 0 2px;
+  padding: 6px;
+  border: none; background: transparent;
+  color: var(--text-2); font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.import-btn:active { color: var(--primary); }
 
 /* ===================== 悬浮新建按钮 ===================== */
 .fab {
